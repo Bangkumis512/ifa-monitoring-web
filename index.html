@@ -252,7 +252,68 @@
                 renderTasks();
             } else if (tab === 'my-tasks') {
                 title.innerText = "Tugas Saya"; subtitle.innerText = "Instruksi Atasan";
+                if(currentUser.role === 'IFA') action.innerHTML = `<button onclick="openSelfTaskModal()" class="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><i data-lucide="plus"></i> Tambah Tugas</button>`;
                 renderMyTasks();
+                    // MODAL TAMBAH TUGAS OLEH IFA
+                    window.openSelfTaskModal = () => {
+                        document.getElementById('modalContent').innerHTML = `
+                            <div class="space-y-6">
+                                <div>
+                                    <h3 class="text-2xl font-black text-slate-800">Tambah Tugas Pribadi</h3>
+                                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Rencana Aktivitas Mandiri</p>
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="space-y-1">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase px-2">Jenis Aktivitas</label>
+                                        <select id="selfTaskType" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none">
+                                            <option value="Survey">Survey</option>
+                                            <option value="Collection">Collection</option>
+                                            <option value="Maintenance">Maintenance</option>
+                                            <option value="Internal">Meeting Internal</option>
+                                            <option value="Lainnya">Lainnya</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase px-2">Judul Tugas</label>
+                                        <input type="text" id="selfTaskTitle" placeholder="Contoh: Follow Up Nasabah" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none">
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase px-2">Tenggat Waktu (Deadline)</label>
+                                        <input type="datetime-local" id="selfTaskDeadline" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none">
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase px-2">Instruksi / Catatan</label>
+                                        <textarea id="selfTaskDesc" placeholder="Jelaskan rencana tugas..." class="w-full p-5 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none" rows="4"></textarea>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-slate-50">
+                                    <button onclick="closeModal()" class="w-full sm:flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl text-xs uppercase">BATAL</button>
+                                    <button onclick="saveSelfTask()" class="w-full sm:flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-100 text-xs uppercase">SIMPAN TUGAS</button>
+                                </div>
+                            </div>
+                        `;
+                        showModal(true);
+                    };
+
+                    window.saveSelfTask = async () => {
+                        const type = document.getElementById('selfTaskType').value;
+                        const title = document.getElementById('selfTaskTitle').value.trim();
+                        const deadline = document.getElementById('selfTaskDeadline').value;
+                        const description = document.getElementById('selfTaskDesc').value.trim();
+                        if(!title || !deadline || !description) return alert("Harap lengkapi data!");
+                        showLoading(true);
+                        try {
+                            await push(ref(db, `artifacts/${appId}/public/data/tasks`), {
+                                targetUser: currentUser.username,
+                                targetName: currentUser.name,
+                                title, type, deadline, description,
+                                status: 'Pending',
+                                from: currentUser.name + ' (Mandiri)',
+                                timestamp: Date.now()
+                            });
+                            closeModal();
+                        } catch { alert("Gagal menyimpan tugas."); } finally { showLoading(false); }
+                    };
             } else if (tab === 'activities') {
                 title.innerText = "Aktivitas"; subtitle.innerText = "Daftar Log Harian";
                 if(currentUser.role === 'IFA') action.innerHTML = `<button onclick="openActivityModal()" class="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><i data-lucide="plus"></i> Tambah Log</button>`;
