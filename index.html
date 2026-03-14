@@ -1,33 +1,3 @@
-// Download aktivitas ke Excel
-        window.downloadAktivitasExcel = async () => {
-            if (typeof window.XLSX === "undefined") {
-                alert("Fitur export sedang dimuat. Silakan tunggu beberapa detik lalu klik ulang.");
-                return;
-            }
-            showLoading(true);
-            try {
-                // Ambil data aktivitas dari database
-                const snap = await get(ref(db, `artifacts/${appId}/public/data/activities`));
-                const data = Object.values(snap.val() || {});
-                if(data.length === 0) { alert('Tidak ada data aktivitas!'); showLoading(false); return; }
-                // Siapkan data untuk Excel
-                const rows = data.map((a, i) => ({
-                    No: i+1,
-                    Nama: a.user,
-                    Username: a.username,
-                    Area: a.area || '',
-                    Tanggal: new Date(a.timestamp).toLocaleString(),
-                    Jenis: a.type,
-                    Aktivitas: a.text
-                }));
-                // SheetJS
-                const ws = XLSX.utils.json_to_sheet(rows);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Aktivitas');
-                XLSX.writeFile(wb, 'Data_Aktivitas_IFA.xlsx');
-            } catch(e) { alert('Gagal download: ' + e.message); }
-            showLoading(false);
-        };
 <!DOCTYPE html>
 <html lang="id">
 <head>
