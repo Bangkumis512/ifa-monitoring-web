@@ -617,18 +617,16 @@
         window.openReportModal = (id) => {
             document.getElementById('modalContent').innerHTML = `
                 <div class="space-y-6">
-                    <div>
-                        <h3 class="text-2xl font-black text-slate-800">Laporan Hasil Kerja</h3>
-                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Konfirmasi Penyelesaian</p>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase px-2">Narasi Laporan</label>
-                        <textarea id="reportText" placeholder="Jelaskan apa saja yang telah diselesaikan dan kendala jika ada..." class="w-full p-5 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none" rows="6"></textarea>
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-3 pt-6">
-                        <button onclick="closeModal()" class="w-full sm:flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl text-xs uppercase">KEMBALI</button>
-                        <button onclick="submitReport('${id}')" class="w-full sm:flex-[2] py-4 bg-green-600 text-white font-black rounded-2xl shadow-lg text-xs uppercase">KONFIRMASI SELESAI</button>
-                    </div>
+                    <h3 class="text-2xl font-black text-slate-800">Laporan Hasil Kerja</h3>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Konfirmasi Penyelesaian</p>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase px-2">Narasi Laporan</label>
+                    <textarea id="reportText" placeholder="Jelaskan apa saja yang telah diselesaikan dan kendala jika ada..." class="w-full p-5 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none" rows="6"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeModal()" class="w-full sm:flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl text-xs uppercase">KEMBALI</button>
+                    <button onclick="submitReport('${id}')" class="w-full sm:flex-[2] py-4 bg-green-600 text-white font-black rounded-2xl shadow-lg text-xs uppercase">KONFIRMASI SELESAI</button>
                 </div>
             `;
             showModal(true);
@@ -811,5 +809,38 @@
         else { document.getElementById('loginPage').classList.remove('hidden'); }
         lucide.createIcons();
     </script>
+    <script>
+window.downloadAktivitasExcel = async function() {
+    if (typeof window.XLSX === "undefined") {
+        alert("Fitur export sedang dimuat. Silakan tunggu beberapa detik lalu klik ulang.");
+        return;
+    }
+    if (typeof get !== "function" || typeof ref !== "function" || typeof db === "undefined") {
+        alert("Database belum siap. Silakan refresh halaman.");
+        return;
+    }
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    try {
+        const appId = "ifa-monitoring-prod";
+        const snap = await get(ref(db, `artifacts/${appId}/public/data/activities`));
+        const data = Object.values(snap.val() || {});
+        if(data.length === 0) { alert('Tidak ada data aktivitas!'); document.getElementById('loadingOverlay').classList.add('hidden'); return; }
+        const rows = data.map((a, i) => ({
+            No: i+1,
+            Nama: a.user,
+            Username: a.username,
+            Area: a.area || '',
+            Tanggal: new Date(a.timestamp).toLocaleString(),
+            Jenis: a.type,
+            Aktivitas: a.text
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Aktivitas');
+        XLSX.writeFile(wb, 'Data_Aktivitas_IFA.xlsx');
+    } catch(e) { alert('Gagal download: ' + e.message); }
+    document.getElementById('loadingOverlay').classList.add('hidden');
+};
+</script>
 </body>
 </html>
