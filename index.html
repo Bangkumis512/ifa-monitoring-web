@@ -1,3 +1,29 @@
+        // Download aktivitas ke Excel
+        window.downloadAktivitasExcel = async () => {
+            showLoading(true);
+            try {
+                // Ambil data aktivitas dari database
+                const snap = await get(ref(db, `artifacts/${appId}/public/data/activities`));
+                const data = Object.values(snap.val() || {});
+                if(data.length === 0) { alert('Tidak ada data aktivitas!'); showLoading(false); return; }
+                // Siapkan data untuk Excel
+                const rows = data.map((a, i) => ({
+                    No: i+1,
+                    Nama: a.user,
+                    Username: a.username,
+                    Area: a.area || '',
+                    Tanggal: new Date(a.timestamp).toLocaleString(),
+                    Jenis: a.type,
+                    Aktivitas: a.text
+                }));
+                // SheetJS
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Aktivitas');
+                XLSX.writeFile(wb, 'Data_Aktivitas_IFA.xlsx');
+            } catch(e) { alert('Gagal download: ' + e.message); }
+            showLoading(false);
+        };
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -86,10 +112,10 @@
         </div>
 
         <!-- Backdrop Mobile -->
-        <div id="sidebarBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden md:hidden"></div>
+        <div id="sidebarBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden md:hidden"></div>
 
         <!-- Sidebar -->
-        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 w-[280px] md:w-80 bg-white border-r border-slate-100 flex flex-col z-50 closed md:translate-x-0">
+        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 w-[80vw] max-w-xs md:w-80 bg-white border-r border-slate-100 flex flex-col z-50 closed md:translate-x-0 transition-transform duration-300">
             <div class="p-6 md:p-8 overflow-y-auto flex-1">
                 <div class="hidden md:flex items-center gap-3 mb-10 px-2">
                     <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-md shadow-blue-100"><i data-lucide="activity" class="w-6 h-6"></i></div>
@@ -131,6 +157,10 @@
     </div>
 
     <script type="module">
+            // SheetJS CDN
+            const scriptSheetJS = document.createElement('script');
+            scriptSheetJS.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+            document.head.appendChild(scriptSheetJS);
         import { initializeApp } from "firebase/app";
         import { getDatabase, ref, get, set, push, onValue, remove, update } from "firebase/database";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
@@ -245,6 +275,9 @@
 
             if (tab === 'dashboard') {
                 title.innerText = "Ringkasan"; subtitle.innerText = "Status Global";
+                if(currentUser.role && (currentUser.role.toUpperCase() === 'IFR HEAD' || currentUser.role.toUpperCase() === 'ADMIN')) {
+                    action.innerHTML = `<button onclick="downloadAktivitasExcel()" class="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><i data-lucide='download'></i> Download Aktivitas</button>`;
+                }
                 renderSummary();
             } else if (tab === 'tasks') {
                 title.innerText = "Penugasan"; subtitle.innerText = "Kirim Instruksi Kerja";
@@ -408,8 +441,15 @@
                         return {ifa, nama, selesai, belum};
                     });
                     document.getElementById('rekapTugasIFA').innerHTML = rekap.map(r => `
-                        <tr class="hover:bg-blue-50 transition cursor-pointer" onclick="showDetailTugasIFA('${r.ifa}')">
-                            <td class="p-2 text-blue-700 underline">${r.nama}</td>
+                        <tr class="group hover:bg-blue-50 transition cursor-pointer" onclick="showDetailTugasIFA('${r.ifa}')">
+                            <td class="p-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-200 to-blue-400 flex items-center justify-center font-black text-white group-hover:scale-105 transition text-xs md:text-sm">
+                                        ${r.nama.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase()}
+                                    </div>
+                                    <span class="font-bold text-blue-700 group-hover:underline">${r.nama}</span>
+                                </div>
+                            </td>
                             <td class="p-2 text-center font-bold text-green-600">${r.selesai}</td>
                             <td class="p-2 text-center font-bold text-amber-600">${r.belum}</td>
                         </tr>
@@ -561,7 +601,7 @@
                             </div>
                         </div>
                     `;
-                }).join('') || `<p class="col-span-full text-center py-20 text-slate-400 font-bold">Belum ada penugasan.</p>`;
+                }).join('') || `<p class="col-span-full text-center py-20 text-slate-400 font-bold italic">Belum ada penugasan.</p>`;
                 lucide.createIcons();
             });
         }
