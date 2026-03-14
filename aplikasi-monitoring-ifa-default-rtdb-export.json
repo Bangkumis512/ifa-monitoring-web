@@ -1,0 +1,118 @@
+{
+  "artifacts": {
+    "ifa-monitoring-prod": {
+      "public": {
+        "data": {
+          "tasks": {
+            "-Onf3rMNUu-KU8F8TWpy": {
+              "completedAt": 1773470497118,
+              "deadline": "2026-03-14T13:40",
+              "description": "laporkan",
+              "from": "Hidratmoko Andri Tamtomo",
+              "report": "sudah pak",
+              "status": "Selesai",
+              "targetName": "Raras Pujiyati",
+              "targetUser": "22578838",
+              "timestamp": 1773470448049,
+              "title": "survey nasabah menunggak",
+              "type": "Survey"
+            }
+          },
+          "users": {
+            "22578838": {
+              "area": "DI Yogyakarta",
+              "name": "Raras Pujiyati",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22578838"
+            },
+            "22578841": {
+              "area": "DI Yogyakarta",
+              "name": "Dyah Putri Wulanjari, Se",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22578841"
+            },
+            "22579678": {
+              "area": "Kota Makassar",
+              "name": "Rahmawati S",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22579678"
+            },
+            "22580163": {
+              "area": "Kota Palembang",
+              "name": "Alif Mulyawan",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22580163"
+            },
+            "22580168": {
+              "area": "Kab. Banyumas",
+              "name": "Wasis Widodo",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22580168"
+            },
+            "22588001": {
+              "area": "Bandar Lampung",
+              "name": "Hendi Firdaus",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22588001"
+            },
+            "22588111": {
+              "area": "Tulang Bawang",
+              "name": "Adam Indra Sakti Sutrisno",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22588111"
+            },
+            "22588908": {
+              "area": "Kota Medan",
+              "name": "Muhammad Zefry Zein Simangunsong",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22588908"
+            },
+            "22588987": {
+              "area": "Kota Malang",
+              "name": "Arief Kurniawan",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22588987"
+            },
+            "22589871": {
+              "area": "Kab. Langkat",
+              "name": "Saputra Utama",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "22589871"
+            },
+            "00200198": {
+              "area": "Nasional",
+              "name": "Hidratmoko Andri Tamtomo",
+              "password": "Btpnsyariah.1",
+              "role": "IFR HEAD",
+              "username": "00200198"
+            },
+            "00201046": {
+              "area": "Kota Cirebon",
+              "name": "Hendra Lesmana Hutomo",
+              "password": "Btpnsyariah.1",
+              "role": "IFA",
+              "username": "00201046"
+            },
+            "admin_ifa": {
+              "area": "Pusat",
+              "name": "Super Admin IFA",
+              "password": "Admin.Monitoring123",
+              "role": "ADMIN",
+              "username": "admin_ifa"
+            }
+          }
+        }
+      }
+    }
+  }
+}

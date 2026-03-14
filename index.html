@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Planner System - Advanced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js",
+        "firebase/database": "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js"
+      }
+    }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; -webkit-tap-highlight-color: transparent; }
+        .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tab-active { background-color: #eff6ff; color: #2563eb; border-left: 4px solid #2563eb; }
+        
+        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @media (max-width: 768px) {
+            #sidebar.closed { transform: translateX(-100%); }
+            #sidebar.open { transform: translateX(0); }
+        }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        
+        .modal-show { animation: modalIn 0.3s ease-out forwards; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    </style>
+</head>
+<body class="overflow-x-hidden">
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center hidden">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-100 h-12 w-12 mb-4"></div>
+        <p class="text-blue-600 font-bold animate-pulse">Memproses Data...</p>
+    </div>
+
+    <!-- HALAMAN LOGIN -->
+    <div id="loginPage" class="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div class="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-2xl shadow-blue-100 p-8 md:p-10 border border-gray-100">
+            <div class="flex justify-center mb-6">
+                <div class="bg-blue-600 p-4 rounded-3xl shadow-lg shadow-blue-200 text-white">
+                    <i data-lucide="shield-check" class="w-10 h-10"></i>
+                </div>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-center text-slate-800 mb-2 tracking-tight">IFA MONITOR</h1>
+            <p class="text-center text-slate-400 text-xs md:text-sm mb-8 md:10 font-medium uppercase tracking-[0.2em]">Secure Access</p>
+            
+            <div id="loginError" class="hidden mb-6 p-4 bg-red-50 text-red-600 text-xs rounded-2xl border border-red-100 font-bold text-center"></div>
+            
+            <div class="space-y-4">
+                <div class="relative">
+                    <i data-lucide="user" class="absolute left-5 top-5 w-5 h-5 text-slate-300"></i>
+                    <input type="text" id="username" placeholder="NIK / Username" class="w-full pl-14 pr-6 py-4 md:py-5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-400 outline-none transition-all font-semibold text-base md:text-lg">
+                </div>
+                <div class="relative">
+                    <i data-lucide="lock" class="absolute left-5 top-5 w-5 h-5 text-slate-300"></i>
+                    <input type="password" id="password" placeholder="Password" class="w-full pl-14 pr-6 py-4 md:py-5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-400 outline-none transition-all font-semibold text-base md:text-lg">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-black py-4 md:py-5 rounded-2xl shadow-xl shadow-blue-200 active:scale-95 transition-all mt-6 uppercase tracking-widest text-sm">MASUK KE SISTEM</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD UTAMA -->
+    <div id="mainDashboard" class="hidden min-h-screen flex flex-col md:flex-row bg-[#fbfcfd]">
+        
+        <!-- Mobile Header -->
+        <div class="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-100 sticky top-0 z-[60]">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 p-1.5 rounded-lg text-white"><i data-lucide="activity" class="w-5 h-5"></i></div>
+                <span class="font-black text-lg text-slate-800 tracking-tighter">IFA MONITOR</span>
+            </div>
+            <button onclick="toggleSidebar(true)" class="p-2 text-slate-600 active:bg-slate-100 rounded-xl transition-all">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- Backdrop Mobile -->
+        <div id="sidebarBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden md:hidden"></div>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 w-[280px] md:w-80 bg-white border-r border-slate-100 flex flex-col z-50 closed md:translate-x-0">
+            <div class="p-6 md:p-8 overflow-y-auto flex-1">
+                <div class="hidden md:flex items-center gap-3 mb-10 px-2">
+                    <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-md shadow-blue-100"><i data-lucide="activity" class="w-6 h-6"></i></div>
+                    <h1 class="font-black text-2xl text-slate-800 tracking-tighter">IFA MONITOR</h1>
+                </div>
+                <nav class="space-y-1.5" id="sidebarNav"></nav>
+            </div>
+            
+            <div class="p-6 border-t border-slate-50 space-y-3">
+                <div class="bg-slate-900 p-4 md:p-5 rounded-[1.5rem] md:rounded-3xl text-white shadow-xl relative overflow-hidden">
+                    <p id="sidebarUserName" class="font-black text-xs md:text-sm truncate mb-1"></p>
+                    <p id="sidebarUserRole" class="text-[9px] md:text-[10px] text-blue-400 font-black uppercase tracking-widest"></p>
+                </div>
+                <button onclick="logout()" class="w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-red-500 hover:bg-red-50 font-black transition-all text-sm">
+                    <i data-lucide="log-out" class="w-5 h-5"></i><span>KELUAR</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto px-4 py-6 md:px-12 md:py-10">
+            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 md:mb-12">
+                <div>
+                    <h2 id="headerTitle" class="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">Dashboard</h2>
+                    <p id="headerSubtitle" class="text-slate-400 font-bold text-[10px] md:text-sm uppercase mt-1 tracking-widest">Realtime Status</p>
+                </div>
+                <div id="headerAction" class="w-full sm:w-auto"></div>
+            </header>
+            
+            <div id="tabContent" class="space-y-6 md:space-y-8 pb-10"></div>
+        </main>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center hidden p-4">
+        <div class="bg-white w-full max-w-xl rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-2xl transition-all duration-300 scale-95 opacity-0 overflow-y-auto max-h-[90vh]" id="modalBox">
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "firebase/app";
+        import { getDatabase, ref, get, set, push, onValue, remove, update } from "firebase/database";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-rnq0QjcLECmTAvtXhaQYoL0yO9FQkfM",
+            authDomain: "aplikasi-monitoring-ifa.firebaseapp.com",
+            databaseURL: "https://aplikasi-monitoring-ifa-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "aplikasi-monitoring-ifa",
+            storageBucket: "aplikasi-monitoring-ifa.firebasestorage.app",
+            messagingSenderId: "155322664289",
+            appId: "1:155322664289:web:f0dd28670719b195777120"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+        const appId = "ifa-monitoring-prod";
+
+        let currentUser = null;
+        let allUsers = {};
+        const apiKey = ""; // Gemini API Key if available
+
+        const ensureAuth = async () => { 
+            if (!auth.currentUser) await signInAnonymously(auth); 
+            return auth.currentUser; 
+        };
+
+        // UI HELPERS
+        window.toggleSidebar = (show) => {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if(show) { sidebar.classList.remove('closed'); sidebar.classList.add('open'); backdrop.classList.remove('hidden'); } 
+            else { sidebar.classList.remove('open'); sidebar.classList.add('closed'); backdrop.classList.add('hidden'); }
+        };
+
+        window.showModal = (s) => {
+            const m = document.getElementById('modalOverlay'), b = document.getElementById('modalBox');
+            if(s) { m.classList.remove('hidden'); setTimeout(() => b.classList.add('modal-show'), 10); } 
+            else { b.classList.remove('modal-show'); setTimeout(() => m.classList.add('hidden'), 300); }
+        };
+
+        window.closeModal = () => showModal(false);
+        window.showLoading = (s) => document.getElementById('loadingOverlay').classList.toggle('hidden', !s);
+        window.logout = () => { sessionStorage.clear(); location.reload(); };
+
+        // AUTH LOGIC
+        window.handleLogin = async () => {
+            const uInput = document.getElementById('username').value.trim();
+            const pInput = document.getElementById('password').value.trim();
+            const err = document.getElementById('loginError');
+            if(!uInput || !pInput) return;
+            showLoading(true);
+            try {
+                await ensureAuth();
+                const snap = await get(ref(db, `artifacts/${appId}/public/data/users`));
+                const users = snap.val() || {};
+                let found = null;
+                for (const k in users) if (k === uInput && users[k].password.toString() === pInput) { found = { ...users[k], username: k }; break; }
+                
+                if (found) {
+                    currentUser = found;
+                    sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
+                    showDashboard();
+                } else {
+                    err.innerText = "NIK atau Password salah."; err.classList.remove('hidden');
+                }
+            } catch (e) { alert("Sistem Error: " + e.message); } finally { showLoading(false); }
+        };
+
+        function showDashboard() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('mainDashboard').classList.remove('hidden');
+            document.getElementById('sidebarUserName').innerText = currentUser.name;
+            document.getElementById('sidebarUserRole').innerText = currentUser.role;
+            
+            onValue(ref(db, `artifacts/${appId}/public/data/users`), snap => { allUsers = snap.val() || {}; });
+            renderSidebar();
+            switchTab('dashboard');
+        }
+
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            const role = currentUser.role.toUpperCase();
+            let items = [{ id: 'dashboard', icon: 'layout', label: 'Ringkasan' }];
+            
+            if (role === 'IFR HEAD' || role === 'ADMIN') {
+                items.push({ id: 'tasks', icon: 'send', label: 'Penugasan' });
+                items.push({ id: 'activities', icon: 'eye', label: 'Monitoring IFA' });
+                if (role === 'ADMIN') items.push({ id: 'manage-users', icon: 'users', label: 'Kelola User' });
+            } else {
+                items.push({ id: 'my-tasks', icon: 'clipboard-list', label: 'Tugas Saya' });
+                items.push({ id: 'activities', icon: 'plus-circle', label: 'Log Aktivitas' });
+            }
+            items.push({ id: 'profile', icon: 'user-cog', label: 'Profil' });
+
+            nav.innerHTML = items.map(item => `
+                <button onclick="switchTab('${item.id}')" class="nav-btn w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all text-slate-400" data-tab="${item.id}">
+                    <i data-lucide="${item.icon}" class="w-5 h-5"></i><span>${item.label}</span>
+                </button>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        window.switchTab = (tab) => {
+            const title = document.getElementById('headerTitle');
+            const subtitle = document.getElementById('headerSubtitle');
+            const action = document.getElementById('headerAction');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.toggle('tab-active', btn.dataset.tab === tab));
+            action.innerHTML = '';
+            toggleSidebar(false);
+
+            if (tab === 'dashboard') {
+                title.innerText = "Ringkasan"; subtitle.innerText = "Status Global";
+                renderSummary();
+            } else if (tab === 'tasks') {
+                title.innerText = "Penugasan"; subtitle.innerText = "Kirim Instruksi Kerja";
+                action.innerHTML = `<button onclick="openTaskModal()" class="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><i data-lucide="plus"></i> Tugas Baru</button>`;
+                renderTasks();
+            } else if (tab === 'my-tasks') {
+                title.innerText = "Tugas Saya"; subtitle.innerText = "Instruksi Atasan";
+                renderMyTasks();
+            } else if (tab === 'activities') {
+                title.innerText = "Aktivitas"; subtitle.innerText = "Daftar Log Harian";
+                if(currentUser.role === 'IFA') action.innerHTML = `<button onclick="openActivityModal()" class="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><i data-lucide="plus"></i> Tambah Log</button>`;
+                renderActivities();
+            } else if (tab === 'manage-users') {
+                title.innerText = "Kelola User"; subtitle.innerText = "Manajemen Database";
+                action.innerHTML = `<button onclick="openUserModal()" class="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><i data-lucide="user-plus"></i> User Baru</button>`;
+                renderManageUsers();
+            } else if (tab === 'profile') {
+                title.innerText = "Profil Saya"; subtitle.innerText = "Identitas & Keamanan";
+                renderProfile();
+            }
+            lucide.createIcons();
+        };
+
+        // CONTENT RENDERING
+        function renderSummary() {
+            const container = document.getElementById('tabContent');
+            container.innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                        <p class="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">Total Log</p>
+                        <h3 id="sumAct" class="text-4xl font-black text-slate-800">0</h3>
+                    </div>
+                    <div class="bg-blue-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-blue-100">
+                        <p class="text-blue-200 font-bold text-[10px] uppercase tracking-widest mb-1">Tugas Aktif</p>
+                        <h3 id="sumTask" class="text-4xl font-black">0</h3>
+                    </div>
+                    <div class="sm:col-span-2 lg:col-span-1 bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-xl">
+                        <p class="text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-1">Status Keanggotaan</p>
+                        <h3 class="text-xl font-black">${currentUser.role}</h3>
+                    </div>
+                </div>
+                <div class="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm mt-8">
+                    <h4 class="font-black text-xl mb-6">Aktivitas Terakhir</h4>
+                    <div id="latestLogs" class="space-y-4"></div>
+                </div>
+            `;
+            
+            onValue(ref(db, `artifacts/${appId}/public/data/activities`), snap => {
+                let items = Object.values(snap.val() || {});
+                if(currentUser.role === 'IFA') items = items.filter(x => x.username === currentUser.username);
+                document.getElementById('sumAct').innerText = items.length;
+                document.getElementById('latestLogs').innerHTML = items.reverse().slice(0, 5).map(a => `
+                    <div class="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all">
+                        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"><i data-lucide="zap" class="w-4 h-4"></i></div>
+                        <div class="flex-1">
+                            <p class="font-bold text-sm text-slate-800 line-clamp-1">${a.text}</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">${a.user} • ${new Date(a.timestamp).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                `).join('') || `<p class="text-slate-400 text-sm italic">Belum ada aktivitas.</p>`;
+                lucide.createIcons();
+            });
+
+            onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
+                const tasks = Object.values(snap.val() || {});
+                let active = tasks.filter(t => t.status !== 'Selesai');
+                if(currentUser.role === 'IFA') active = active.filter(t => t.targetUser === currentUser.username);
+                document.getElementById('sumTask').innerText = active.length;
+            });
+        }
+
+        // --- TASK MANAGEMENT ---
+        window.openTaskModal = () => {
+            const ifas = Object.keys(allUsers).filter(k => allUsers[k].role === 'IFA');
+            const userOptions = ifas.map(k => `<option value="${k}">${allUsers[k].name} (${k})</option>`).join('');
+            
+            document.getElementById('modalContent').innerHTML = `
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-800">Penugasan Baru</h3>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Delegasi Instruksi</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-slate-400 uppercase px-2">Pilih IFA</label>
+                                <select id="taskTarget" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none">${userOptions}</select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-slate-400 uppercase px-2">Jenis Aktivitas</label>
+                                <select id="taskType" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none">
+                                    <option value="Survey">Survey Lapangan</option>
+                                    <option value="Collection">Collection</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Internal">Meeting Internal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase px-2">Judul Tugas</label>
+                            <input type="text" id="taskTitle" placeholder="Contoh: Survey Nasabah Macet" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase px-2">Tenggat Waktu (Deadline)</label>
+                            <input type="datetime-local" id="taskDeadline" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase px-2">Instruksi Detail</label>
+                            <textarea id="taskDesc" placeholder="Jelaskan langkah-langkah yang harus dilakukan..." class="w-full p-5 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none" rows="4"></textarea>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-slate-50">
+                        <button onclick="closeModal()" class="w-full sm:flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl text-xs uppercase">BATAL</button>
+                        <button onclick="saveTask()" class="w-full sm:flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-100 text-xs uppercase">KIRIM TUGAS</button>
+                    </div>
+                </div>
+            `;
+            showModal(true);
+        };
+
+        window.saveTask = async () => {
+            const targetUser = document.getElementById('taskTarget').value;
+            const type = document.getElementById('taskType').value;
+            const title = document.getElementById('taskTitle').value.trim();
+            const deadline = document.getElementById('taskDeadline').value;
+            const description = document.getElementById('taskDesc').value.trim();
+            
+            if(!title || !deadline || !description) return alert("Harap lengkapi data!");
+            
+            showLoading(true);
+            try {
+                await push(ref(db, `artifacts/${appId}/public/data/tasks`), {
+                    targetUser, 
+                    targetName: allUsers[targetUser].name, 
+                    title, type, deadline, description, 
+                    status: 'Pending', 
+                    from: currentUser.name,
+                    timestamp: Date.now()
+                });
+                closeModal();
+            } catch { alert("Gagal mengirim tugas."); } finally { showLoading(false); }
+        };
+
+        function renderTasks() {
+            onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
+                const data = snap.val() || {};
+                const list = document.getElementById('tabContent');
+                list.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="taskListGrid"></div>`;
+                const grid = document.getElementById('taskListGrid');
+                
+                grid.innerHTML = Object.keys(data).reverse().map(id => {
+                    const t = data[id];
+                    const isOverdue = t.status !== 'Selesai' && new Date(t.deadline) < new Date();
+                    return `
+                        <div class="bg-white p-8 rounded-[2.5rem] border ${t.status === 'Selesai' ? 'border-green-100' : (isOverdue ? 'border-red-100' : 'border-slate-100')} relative">
+                            <div class="flex justify-between items-start mb-4">
+                                <span class="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase">${t.type}</span>
+                                <span class="text-[9px] font-black uppercase ${t.status === 'Selesai' ? 'text-green-500' : 'text-amber-500'}">${t.status}</span>
+                            </div>
+                            <h4 class="text-xl font-black text-slate-800 mb-2">${t.title}</h4>
+                            <p class="text-slate-500 text-sm line-clamp-2 mb-6">${t.description}</p>
+                            
+                            <div class="grid grid-cols-2 gap-4 py-4 border-y border-slate-50 mb-6">
+                                <div><p class="text-[9px] font-black text-slate-300 uppercase">Petugas</p><p class="text-xs font-bold">${t.targetName}</p></div>
+                                <div><p class="text-[9px] font-black text-slate-300 uppercase">Deadline</p><p class="text-xs font-bold ${isOverdue ? 'text-red-500' : ''}">${new Date(t.deadline).toLocaleString()}</p></div>
+                            </div>
+                            
+                            ${t.report ? `
+                                <div class="bg-blue-50/50 p-4 rounded-2xl mb-6">
+                                    <p class="text-[9px] font-black text-blue-400 uppercase mb-1">Hasil Laporan</p>
+                                    <p class="text-xs italic text-blue-800">"${t.report}"</p>
+                                </div>
+                            ` : ''}
+
+                            <div class="flex justify-between items-center">
+                                <span class="text-[9px] font-bold text-slate-400 uppercase">Dari: ${t.from}</span>
+                                <button onclick="deleteTask('${id}')" class="text-red-300 hover:text-red-500 p-2 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    `;
+                }).join('') || `<p class="col-span-full text-center py-20 text-slate-400 font-bold">Belum ada penugasan.</p>`;
+                lucide.createIcons();
+            });
+        }
+
+        window.deleteTask = async (id) => { if(confirm("Hapus tugas ini?")) { await remove(ref(db, `artifacts/${appId}/public/data/tasks/${id}`)); } };
+
+        // --- IFA WORKFLOW ---
+        function renderMyTasks() {
+            onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
+                const data = snap.val() || {};
+                const list = document.getElementById('tabContent');
+                const myTasks = Object.keys(data).filter(id => data[id].targetUser === currentUser.username);
+                
+                list.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="myTaskGrid"></div>`;
+                document.getElementById('myTaskGrid').innerHTML = myTasks.reverse().map(id => {
+                    const t = data[id];
+                    return `
+                        <div class="bg-white p-8 rounded-[2.5rem] border ${t.status === 'Selesai' ? 'border-green-100 bg-green-50/5' : 'border-blue-100 shadow-xl shadow-blue-50/20'}">
+                            <span class="px-3 py-1 bg-blue-100 text-blue-600 rounded-lg text-[9px] font-black uppercase">${t.type}</span>
+                            <h4 class="text-xl font-black text-slate-800 mt-4 mb-2">${t.title}</h4>
+                            <p class="text-slate-500 text-sm mb-6">${t.description}</p>
+                            <div class="flex items-center gap-2 mb-8 text-xs font-bold text-slate-400">
+                                <i data-lucide="calendar" class="w-4 h-4"></i> Deadline: ${new Date(t.deadline).toLocaleString()}
+                            </div>
+                            ${t.status !== 'Selesai' ? 
+                                `<button onclick="openReportModal('${id}')" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg shadow-blue-200">Selesaikan Tugas</button>` : 
+                                `<div class="bg-green-100 text-green-700 p-4 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase"><i data-lucide="check-circle" class="w-5 h-5"></i> Tugas Selesai</div>`
+                            }
+                        </div>
+                    `;
+                }).join('') || `<p class="col-span-full text-center py-20 text-slate-400 font-bold italic">Tidak ada tugas untuk Anda.</p>`;
+                lucide.createIcons();
+            });
+        }
+
+        window.openReportModal = (id) => {
+            document.getElementById('modalContent').innerHTML = `
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-800">Laporan Hasil Kerja</h3>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Konfirmasi Penyelesaian</p>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase px-2">Narasi Laporan</label>
+                        <textarea id="reportText" placeholder="Jelaskan apa saja yang telah diselesaikan dan kendala jika ada..." class="w-full p-5 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none" rows="6"></textarea>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 pt-6">
+                        <button onclick="closeModal()" class="w-full sm:flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl text-xs uppercase">KEMBALI</button>
+                        <button onclick="submitReport('${id}')" class="w-full sm:flex-[2] py-4 bg-green-600 text-white font-black rounded-2xl shadow-lg text-xs uppercase">KONFIRMASI SELESAI</button>
+                    </div>
+                </div>
+            `;
+            showModal(true);
+        };
+
+        window.submitReport = async (id) => {
+            const report = document.getElementById('reportText').value.trim();
+            if(!report) return alert("Wajib menuliskan laporan!");
+            showLoading(true);
+            try {
+                await update(ref(db, `artifacts/${appId}/public/data/tasks/${id}`), {
+                    status: 'Selesai',
+                    report: report,
+                    completedAt: Date.now()
+                });
+                closeModal();
+            } catch { alert("Gagal memperbarui status."); } finally { showLoading(false); }
+        };
+
+        // --- PROFILE & SECURITY ---
+        function renderProfile() {
+            document.getElementById('tabContent').innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white rounded-[3rem] p-10 md:p-12 border border-slate-100 shadow-sm">
+                        <div class="flex flex-col items-center text-center mb-10">
+                            <div class="w-24 h-24 bg-blue-600 rounded-[2rem] flex items-center justify-center text-white mb-6 shadow-xl shadow-blue-100"><i data-lucide="user" class="w-12 h-12"></i></div>
+                            <h3 class="text-3xl font-black text-slate-800">${currentUser.name}</h3>
+                            <p class="text-blue-500 font-black uppercase text-[10px] tracking-widest mt-1">${currentUser.role}</p>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="p-5 bg-slate-50 rounded-2xl flex justify-between items-center"><span class="text-slate-400 font-bold text-xs uppercase">NIK</span><span class="font-black text-slate-800">${currentUser.username}</span></div>
+                            <div class="p-5 bg-slate-50 rounded-2xl flex justify-between items-center"><span class="text-slate-400 font-bold text-xs uppercase">AREA</span><span class="font-black text-slate-800">${currentUser.area || 'Nasional'}</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-[3rem] p-10 md:p-12 border border-slate-100 shadow-sm">
+                        <h4 class="text-xl font-black text-slate-800 mb-8 flex items-center gap-3"><i data-lucide="lock" class="text-blue-600"></i> Keamanan Akun</h4>
+                        <div id="passMsg" class="hidden mb-6 p-4 rounded-xl text-xs font-bold text-center"></div>
+                        <div class="space-y-5">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-slate-400 uppercase px-2">Password Baru</label>
+                                <input type="password" id="newPass" class="w-full p-4 bg-slate-50 rounded-xl border-none outline-none font-bold">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-slate-400 uppercase px-2">Konfirmasi Password</label>
+                                <input type="password" id="confirmPass" class="w-full p-4 bg-slate-50 rounded-xl border-none outline-none font-bold">
+                            </div>
+                            <button onclick="changePassword()" class="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all mt-4">Update Password</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        window.changePassword = async () => {
+            const p1 = document.getElementById('newPass').value;
+            const p2 = document.getElementById('confirmPass').value;
+            const msg = document.getElementById('passMsg');
+            
+            if(!p1 || p1.length < 5) { alert("Password minimal 5 karakter!"); return; }
+            if(p1 !== p2) { alert("Konfirmasi password tidak cocok!"); return; }
+            
+            showLoading(true);
+            try {
+                await update(ref(db, `artifacts/${appId}/public/data/users/${currentUser.username}`), { password: p1 });
+                msg.innerText = "Password berhasil diperbarui!";
+                msg.className = "mb-6 p-4 rounded-xl text-xs font-bold text-center bg-green-50 text-green-600 block";
+                document.getElementById('newPass').value = '';
+                document.getElementById('confirmPass').value = '';
+            } catch { alert("Gagal update password."); } finally { showLoading(false); }
+        };
+
+        // --- ACTIVITIES & USERS (SAME AS BEFORE) ---
+        function renderActivities() {
+            const container = document.getElementById('tabContent');
+            container.innerHTML = `<div class="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden"><div id="actMobileList" class="divide-y divide-slate-50"></div></div>`;
+            onValue(ref(db, `artifacts/${appId}/public/data/activities`), snap => {
+                let items = Object.values(snap.val() || {});
+                if(currentUser.role === 'IFA') items = items.filter(a => a.username === currentUser.username);
+                document.getElementById('actMobileList').innerHTML = items.reverse().map(a => `
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[9px] font-black text-slate-300 uppercase">${new Date(a.timestamp).toLocaleString()}</span>
+                            <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[8px] font-black rounded-lg uppercase">${a.type}</span>
+                        </div>
+                        <p class="text-sm font-bold text-slate-800">${a.text}</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mt-4">${a.user} • ${a.area || '-'}</p>
+                    </div>
+                `).join('') || `<p class="p-20 text-center text-slate-400 italic font-bold">Data kosong.</p>`;
+            });
+        }
+
+        window.openActivityModal = () => {
+            document.getElementById('modalContent').innerHTML = `
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-black text-slate-800">Log Aktivitas</h3>
+                    <div class="space-y-4">
+                        <select id="actType" class="w-full p-4 bg-slate-50 rounded-xl border-none font-bold outline-none text-sm">
+                            <option value="Survey">Survey</option>
+                            <option value="Collection">Collection</option>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                        <textarea id="actText" placeholder="Tuliskan aktivitas yang dilakukan..." class="w-full p-5 bg-slate-50 rounded-2xl border-none font-bold outline-none text-sm" rows="5"></textarea>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="closeModal()" class="flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl text-xs uppercase">BATAL</button>
+                        <button onclick="saveActivity()" class="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg text-xs uppercase">SIMPAN</button>
+                    </div>
+                </div>
+            `;
+            showModal(true);
+        };
+
+        window.saveActivity = async () => {
+            const text = document.getElementById('actText').value.trim();
+            const type = document.getElementById('actType').value;
+            if(!text) return;
+            showLoading(true);
+            try {
+                await push(ref(db, `artifacts/${appId}/public/data/activities`), {
+                    text, type, user: currentUser.name, username: currentUser.username, area: currentUser.area || '', timestamp: Date.now()
+                });
+                closeModal();
+            } catch { alert("Error"); } finally { showLoading(false); }
+        };
+
+        function renderManageUsers() {
+            const container = document.getElementById('tabContent');
+            container.innerHTML = `<div class="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden"><div id="userList" class="divide-y divide-slate-50"></div></div>`;
+            onValue(ref(db, `artifacts/${appId}/public/data/users`), snap => {
+                const data = snap.val() || {};
+                document.getElementById('userList').innerHTML = Object.keys(data).map(k => `
+                    <div class="p-6 flex justify-between items-center">
+                        <div>
+                            <p class="text-sm font-black text-slate-800">${data[k].name}</p>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">${k} • ${data[k].role}</p>
+                        </div>
+                        <button onclick="deleteUser('${k}')" class="p-3 text-red-300 hover:text-red-500"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            });
+        }
+
+        window.openUserModal = () => {
+            document.getElementById('modalContent').innerHTML = `
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-black text-slate-800">Tambah User</h3>
+                    <div class="space-y-4">
+                        <input type="text" id="nu" placeholder="NIK" class="w-full p-4 bg-slate-50 rounded-xl font-bold text-sm border-none outline-none">
+                        <input type="text" id="nn" placeholder="Nama Lengkap" class="w-full p-4 bg-slate-50 rounded-xl font-bold text-sm border-none outline-none">
+                        <input type="password" id="np" placeholder="Password Default" class="w-full p-4 bg-slate-50 rounded-xl font-bold text-sm border-none outline-none">
+                        <select id="nr" class="w-full p-4 bg-slate-50 rounded-xl font-bold text-sm border-none outline-none">
+                            <option value="IFA">IFA</option><option value="IFR HEAD">IFR HEAD</option><option value="ADMIN">ADMIN</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="closeModal()" class="flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl text-xs uppercase">BATAL</button>
+                        <button onclick="saveUser()" class="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl text-xs uppercase">SIMPAN</button>
+                    </div>
+                </div>
+            `;
+            showModal(true);
+        };
+
+        window.saveUser = async () => {
+            const u = document.getElementById('nu').value, n = document.getElementById('nn').value, p = document.getElementById('np').value, r = document.getElementById('nr').value;
+            if(!u || !n || !p) return;
+            showLoading(true);
+            try { await set(ref(db, `artifacts/${appId}/public/data/users/${u}`), { name: n, password: p, role: r }); closeModal(); } catch { alert("Error"); } finally { showLoading(false); }
+        };
+
+        window.deleteUser = async (k) => { if(confirm("Hapus user?")) await remove(ref(db, `artifacts/${appId}/public/data/users/${k}`)); };
+
+        // INITIAL CHECK
+        const saved = sessionStorage.getItem('activeUser');
+        if (saved) { currentUser = JSON.parse(saved); showDashboard(); } 
+        else { document.getElementById('loginPage').classList.remove('hidden'); }
+        lucide.createIcons();
+    </script>
+</body>
+</html>
