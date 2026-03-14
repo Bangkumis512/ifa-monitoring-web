@@ -808,6 +808,10 @@
         if (saved) { currentUser = JSON.parse(saved); showDashboard(); } 
         else { document.getElementById('loginPage').classList.remove('hidden'); }
         lucide.createIcons();
+        // Expose Firebase db, get, ref to global scope for non-module scripts
+        window.db = db;
+        window.get = get;
+        window.ref = ref;
     </script>
     <script>
 window.downloadAktivitasExcel = async function() {
