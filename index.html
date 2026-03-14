@@ -1,5 +1,9 @@
-        // Download aktivitas ke Excel
+// Download aktivitas ke Excel
         window.downloadAktivitasExcel = async () => {
+            if (typeof window.XLSX === "undefined") {
+                alert("Fitur export sedang dimuat. Silakan tunggu beberapa detik lalu klik ulang.");
+                return;
+            }
             showLoading(true);
             try {
                 // Ambil data aktivitas dari database
@@ -275,8 +279,11 @@
 
             if (tab === 'dashboard') {
                 title.innerText = "Ringkasan"; subtitle.innerText = "Status Global";
+                // Only show download button for IFR HEAD and ADMIN
                 if(currentUser.role && (currentUser.role.toUpperCase() === 'IFR HEAD' || currentUser.role.toUpperCase() === 'ADMIN')) {
                     action.innerHTML = `<button onclick="downloadAktivitasExcel()" class="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><i data-lucide='download'></i> Download Aktivitas</button>`;
+                } else {
+                    action.innerHTML = '';
                 }
                 renderSummary();
             } else if (tab === 'tasks') {
