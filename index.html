@@ -826,22 +826,27 @@ window.downloadAktivitasExcel = async function() {
     document.getElementById('loadingOverlay').classList.remove('hidden');
     try {
         const appId = "ifa-monitoring-prod";
-        const snap = await get(ref(db, `artifacts/${appId}/public/data/activities`));
+        const snap = await get(ref(db, `artifacts/${appId}/public/data/tasks`));
         const data = Object.values(snap.val() || {});
-        if(data.length === 0) { alert('Tidak ada data aktivitas!'); document.getElementById('loadingOverlay').classList.add('hidden'); return; }
-        const rows = data.map((a, i) => ({
+        if(data.length === 0) { alert('Tidak ada data tugas!'); document.getElementById('loadingOverlay').classList.add('hidden'); return; }
+        const rows = data.map((t, i) => ({
             No: i+1,
-            Nama: a.user,
-            Username: a.username,
-            Area: a.area || '',
-            Tanggal: new Date(a.timestamp).toLocaleString(),
-            Jenis: a.type,
-            Aktivitas: a.text
+            Nama_IFA: t.targetName || '',
+            Username_IFA: t.targetUser || '',
+            Judul_Tugas: t.title || '',
+            Jenis: t.type || '',
+            Deadline: t.deadline ? new Date(t.deadline).toLocaleString() : '',
+            Status: t.status || '',
+            Instruksi: t.description || '',
+            Laporan: t.report || '',
+            Dari: t.from || '',
+            Tanggal_Dibuat: t.timestamp ? new Date(t.timestamp).toLocaleString() : '',
+            Tanggal_Selesai: t.completedAt ? new Date(t.completedAt).toLocaleString() : ''
         }));
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Aktivitas');
-        XLSX.writeFile(wb, 'Data_Aktivitas_IFA.xlsx');
+        XLSX.utils.book_append_sheet(wb, ws, 'Tugas');
+        XLSX.writeFile(wb, 'Data_Tugas_IFA.xlsx');
     } catch(e) { alert('Gagal download: ' + e.message); }
     document.getElementById('loadingOverlay').classList.add('hidden');
 };
