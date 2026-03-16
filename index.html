@@ -343,6 +343,18 @@
         function renderSummary() {
             const container = document.getElementById('tabContent');
             let summaryHTML = `
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <div class="flex items-center gap-2">
+                        <label for="filterSummaryStart" class="text-xs font-bold text-slate-500">Dari</label>
+                        <input type="date" id="filterSummaryStart" class="p-2 rounded-xl border border-slate-200 text-xs" />
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label for="filterSummaryEnd" class="text-xs font-bold text-slate-500">Sampai</label>
+                        <input type="date" id="filterSummaryEnd" class="p-2 rounded-xl border border-slate-200 text-xs" />
+                    </div>
+                    <button id="filterSummaryBtn" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Terapkan</button>
+                    <button id="filterSummaryReset" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold">Semua Hari</button>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                         <p class="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">Total Log</p>
@@ -385,11 +397,16 @@
             `;
             container.innerHTML = summaryHTML;
             
-            onValue(ref(db, `artifacts/${appId}/public/data/activities`), snap => {
-                let items = Object.values(snap.val() || {});
+            let allActivities = [];
+            let filterStart = null;
+            let filterEnd = null;
+            function applySummaryFilter() {
+                let items = [...allActivities];
                 if(currentUser.role === 'IFA') items = items.filter(x => x.username === currentUser.username);
+                if(filterStart) items = items.filter(x => x.timestamp >= filterStart);
+                if(filterEnd) items = items.filter(x => x.timestamp <= filterEnd);
                 document.getElementById('sumAct').innerText = items.length;
-                document.getElementById('latestLogs').innerHTML = items.reverse().slice(0, 5).map(a => `
+                document.getElementById('latestLogs').innerHTML = items.slice().reverse().slice(0, 5).map(a => `
                     <div class="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all">
                         <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"><i data-lucide="zap" class="w-4 h-4"></i></div>
                         <div class="flex-1">
@@ -399,7 +416,26 @@
                     </div>
                 `).join('') || `<p class="text-slate-400 text-sm italic">Belum ada aktivitas.</p>`;
                 lucide.createIcons();
+            }
+            onValue(ref(db, `artifacts/${appId}/public/data/activities`), snap => {
+                allActivities = Object.values(snap.val() || {});
+                applySummaryFilter();
             });
+            setTimeout(() => {
+                const startInput = document.getElementById('filterSummaryStart');
+                const endInput = document.getElementById('filterSummaryEnd');
+                document.getElementById('filterSummaryBtn').onclick = () => {
+                    filterStart = startInput.value ? new Date(startInput.value).setHours(0,0,0,0) : null;
+                    filterEnd = endInput.value ? new Date(endInput.value).setHours(23,59,59,999) : null;
+                    applySummaryFilter();
+                };
+                document.getElementById('filterSummaryReset').onclick = () => {
+                    filterStart = null; filterEnd = null;
+                    startInput.value = '';
+                    endInput.value = '';
+                    applySummaryFilter();
+                };
+            }, 500);
 
             onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
                 const tasks = Object.values(snap.val() || {});
@@ -542,14 +578,15 @@
         };
 
         function renderTasks() {
-            onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
-                const data = snap.val() || {};
-                const list = document.getElementById('tabContent');
-                list.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="taskListGrid"></div>`;
+            let allTasks = {};
+            let filterStart = null;
+            let filterEnd = null;
+            function applyTaskFilter() {
                 const grid = document.getElementById('taskListGrid');
-                
-                grid.innerHTML = Object.keys(data).reverse().map(id => {
-                    const t = data[id];
+                let filtered = Object.keys(allTasks).map(id => ({...allTasks[id], _id: id}));
+                if(filterStart) filtered = filtered.filter(t => new Date(t.deadline).getTime() >= filterStart);
+                if(filterEnd) filtered = filtered.filter(t => new Date(t.deadline).getTime() <= filterEnd);
+                grid.innerHTML = filtered.reverse().map(t => {
                     const isOverdue = t.status !== 'Selesai' && new Date(t.deadline) < new Date();
                     return `
                         <div class="bg-white p-8 rounded-[2.5rem] border ${t.status === 'Selesai' ? 'border-green-100' : (isOverdue ? 'border-red-100' : 'border-slate-100')} relative">
@@ -559,27 +596,59 @@
                             </div>
                             <h4 class="text-xl font-black text-slate-800 mb-2">${t.title}</h4>
                             <p class="text-slate-500 text-sm line-clamp-2 mb-6">${t.description}</p>
-                            
                             <div class="grid grid-cols-2 gap-4 py-4 border-y border-slate-50 mb-6">
                                 <div><p class="text-[9px] font-black text-slate-300 uppercase">Petugas</p><p class="text-xs font-bold">${t.targetName}</p></div>
                                 <div><p class="text-[9px] font-black text-slate-300 uppercase">Deadline</p><p class="text-xs font-bold ${isOverdue ? 'text-red-500' : ''}">${new Date(t.deadline).toLocaleString()}</p></div>
                             </div>
-                            
                             ${t.report ? `
                                 <div class="bg-blue-50/50 p-4 rounded-2xl mb-6">
                                     <p class="text-[9px] font-black text-blue-400 uppercase mb-1">Hasil Laporan</p>
                                     <p class="text-xs italic text-blue-800">"${t.report}"</p>
                                 </div>
                             ` : ''}
-
                             <div class="flex justify-between items-center">
                                 <span class="text-[9px] font-bold text-slate-400 uppercase">Dari: ${t.from}</span>
-                                <button onclick="deleteTask('${id}')" class="text-red-300 hover:text-red-500 p-2 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                <button onclick="deleteTask('${t._id}')" class="text-red-300 hover:text-red-500 p-2 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                             </div>
                         </div>
                     `;
                 }).join('') || `<p class="col-span-full text-center py-20 text-slate-400 font-bold italic">Belum ada penugasan.</p>`;
                 lucide.createIcons();
+            }
+            onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
+                allTasks = snap.val() || {};
+                const list = document.getElementById('tabContent');
+                list.innerHTML = `
+                    <div class="flex flex-col md:flex-row gap-4 mb-6">
+                        <div class="flex items-center gap-2">
+                            <label for="filterTaskStart" class="text-xs font-bold text-slate-500">Dari</label>
+                            <input type="date" id="filterTaskStart" class="p-2 rounded-xl border border-slate-200 text-xs" />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="filterTaskEnd" class="text-xs font-bold text-slate-500">Sampai</label>
+                            <input type="date" id="filterTaskEnd" class="p-2 rounded-xl border border-slate-200 text-xs" />
+                        </div>
+                        <button id="filterTaskBtn" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Terapkan</button>
+                        <button id="filterTaskReset" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold">Semua Hari</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="taskListGrid"></div>
+                `;
+                setTimeout(() => {
+                    const startInput = document.getElementById('filterTaskStart');
+                    const endInput = document.getElementById('filterTaskEnd');
+                    document.getElementById('filterTaskBtn').onclick = () => {
+                        filterStart = startInput.value ? new Date(startInput.value).setHours(0,0,0,0) : null;
+                        filterEnd = endInput.value ? new Date(endInput.value).setHours(23,59,59,999) : null;
+                        applyTaskFilter();
+                    };
+                    document.getElementById('filterTaskReset').onclick = () => {
+                        filterStart = null; filterEnd = null;
+                        startInput.value = '';
+                        endInput.value = '';
+                        applyTaskFilter();
+                    };
+                }, 500);
+                applyTaskFilter();
             });
         }
 
