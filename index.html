@@ -421,21 +421,27 @@
                 allActivities = Object.values(snap.val() || {});
                 applySummaryFilter();
             });
-            setTimeout(() => {
+            function attachSummaryFilterEvents() {
                 const startInput = document.getElementById('filterSummaryStart');
                 const endInput = document.getElementById('filterSummaryEnd');
-                document.getElementById('filterSummaryBtn').onclick = () => {
-                    filterStart = startInput.value ? new Date(startInput.value).setHours(0,0,0,0) : null;
-                    filterEnd = endInput.value ? new Date(endInput.value).setHours(23,59,59,999) : null;
-                    applySummaryFilter();
-                };
-                document.getElementById('filterSummaryReset').onclick = () => {
-                    filterStart = null; filterEnd = null;
-                    startInput.value = '';
-                    endInput.value = '';
-                    applySummaryFilter();
-                };
-            }, 500);
+                const btn = document.getElementById('filterSummaryBtn');
+                const reset = document.getElementById('filterSummaryReset');
+                if (btn && reset && startInput && endInput) {
+                    btn.onclick = () => {
+                        filterStart = startInput.value ? new Date(startInput.value).setHours(0,0,0,0) : null;
+                        filterEnd = endInput.value ? new Date(endInput.value).setHours(23,59,59,999) : null;
+                        applySummaryFilter();
+                    };
+                    reset.onclick = () => {
+                        filterStart = null; filterEnd = null;
+                        startInput.value = '';
+                        endInput.value = '';
+                        applySummaryFilter();
+                    };
+                }
+            }
+            // Attach events every time after render
+            attachSummaryFilterEvents();
 
             onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
                 const tasks = Object.values(snap.val() || {});
