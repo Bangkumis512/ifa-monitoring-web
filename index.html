@@ -417,31 +417,35 @@
                 `).join('') || `<p class="text-slate-400 text-sm italic">Belum ada aktivitas.</p>`;
                 lucide.createIcons();
             }
-            onValue(ref(db, `artifacts/${appId}/public/data/activities`), snap => {
-                allActivities = Object.values(snap.val() || {});
-                applySummaryFilter();
-            });
-            function attachSummaryFilterEvents() {
-                const startInput = document.getElementById('filterSummaryStart');
-                const endInput = document.getElementById('filterSummaryEnd');
-                const btn = document.getElementById('filterSummaryBtn');
-                const reset = document.getElementById('filterSummaryReset');
-                if (btn && reset && startInput && endInput) {
-                    btn.onclick = () => {
-                        filterStart = startInput.value ? new Date(startInput.value).setHours(0,0,0,0) : null;
-                        filterEnd = endInput.value ? new Date(endInput.value).setHours(23,59,59,999) : null;
-                        applySummaryFilter();
-                    };
-                    reset.onclick = () => {
-                        filterStart = null; filterEnd = null;
-                        startInput.value = '';
-                        endInput.value = '';
-                        applySummaryFilter();
-                    };
+            onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
+                const tasks = Object.values(snap.val() || {});
+                let active = tasks.filter(t => t.status !== 'Selesai');
+                if(currentUser.role === 'IFA') active = active.filter(t => t.targetUser === currentUser.username);
+                document.getElementById('sumTask').innerText = active.length;
+
+                // Rekap per IFA untuk IFR HEAD
+                if(currentUser.role && currentUser.role.toUpperCase() === 'IFR HEAD') {
+                    // Ambil semua user IFA
+                    const ifaList = Object.keys(allUsers).filter(k => allUsers[k].role === 'IFA');
+                    const rekap = ifaList.map(ifa => {
+                        const nama = allUsers[ifa].name;
+                        // Terapkan filter tanggal pada tugas
+                        let tugasIFA = tasks.filter(t => t.targetUser === ifa);
+                        if (filterStart) tugasIFA = tugasIFA.filter(t => new Date(t.deadline).getTime() >= filterStart);
+                        if (filterEnd) tugasIFA = tugasIFA.filter(t => new Date(t.deadline).getTime() <= filterEnd);
+                        const selesai = tugasIFA.filter(t => t.status === 'Selesai').length;
+                        const belum = tugasIFA.filter(t => t.status !== 'Selesai').length;
+                        return {ifa, nama, selesai, belum};
+                    });
+                    document.getElementById('rekapTugasIFA').innerHTML = rekap.map(r => `
+                        <tr class="group hover:bg-blue-50 transition cursor-pointer" onclick="showDetailTugasIFA('${r.ifa}')">
+                            <td class="p-2 font-bold">${r.nama}</td>
+                            <td class="p-2 text-center text-green-600 font-black">${r.selesai}</td>
+                            <td class="p-2 text-center text-amber-600 font-black">${r.belum}</td>
+                        </tr>
+                    `).join('');
                 }
-            }
-            // Attach events every time after render
-            attachSummaryFilterEvents();
+            });
 
             onValue(ref(db, `artifacts/${appId}/public/data/tasks`), snap => {
                 const tasks = Object.values(snap.val() || {});
